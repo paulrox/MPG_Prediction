@@ -86,3 +86,4 @@ options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', 'SelectionFcn', 
 
 [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], options);
 
+% ciao
