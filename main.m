@@ -58,10 +58,18 @@ target_d = std(mpg);
 
 target_norm = (mpg - target_m) / target_d;
 
+%% Extract the correlation matrices
+
+% Correlation between the input features
+feat_corr = corr(features_norm);
+
+% Correlation between input features and targets
+targ_corr = corr(features_norm, target_norm);
+
 %% This section is just a test!
 
 % Select 3 features
-net_in = [features_norm(:,1) features_norm(:,2) features_norm(:,3)]';
+net_in = [features_norm(:,2) features_norm(:,4) features_norm(:,6)]';
 
 targets = target_norm';
 
@@ -69,7 +77,7 @@ targets = target_norm';
 % 
 % net = configure(net, net_in, targets);
 
-%[perf, regr] = try_fit(10);
+% [perf, regr] = try_fit(10);
 
 %% Set up the Genetic Algorithm
 
@@ -80,10 +88,8 @@ options = gaoptimset;
 
 options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', 'SelectionFcn', @selectionroulette, ...
     'CrossoverFcn', @crossoversinglepoint, 'MutationFcn', @mutationgaussian, ...
-    'Generations', 300);
+    'Generations', 10, 'PlotFcns', @gaplotbestf);
 
-%[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], [], [1 2 3], options);
+% [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], [], [1 2 3], options);
 
 [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], options);
-
-% ciao
