@@ -2,7 +2,7 @@ function [ y ] = my_fitness( x )
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
-global features_norm net_in
+global net_in
 global targets
 
 net = feedforwardnet(10);
