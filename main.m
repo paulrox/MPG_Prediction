@@ -1,7 +1,7 @@
 %% Main script.
 clearvars; clc;
 
-global net_in targets features_norm;
+global net_in targets features_norm feat_corr targ_corr;
 % features coloumns indices
 cyl_col = 1;
 disp_col = 2;
@@ -66,18 +66,33 @@ feat_corr = corr(features_norm);
 % Correlation between input features and targets
 targ_corr = corr(features_norm, target_norm);
 
+% A = [1 -1 0; -1 1 0; 0 1 -1; 0 -1 1; 1 0 -1; -1 0 1];
+% b = [1 -1 1 -1 1 -1]';
+
+fitnessFcn = @feat_fitness;
+nvar = 3;
+
+options = gaoptimset;
+
+options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', ...
+    'Generations', 300, 'PlotFcns', @gaplotbestf);
+
+[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], [], [1 2 3], options);
+
+
+
 %% This section is just a test!
 
 % Select 3 features
-net_in = [features_norm(:,2) features_norm(:,4) features_norm(:,6)]';
+net_in = [features_norm(:,2) features_norm(:,6) features_norm(:,7)]';
 
 targets = target_norm';
 
-% net = feedforwardnet(10);
-% 
-% net = configure(net, net_in, targets);
+net = feedforwardnet(10);
 
-% [perf, regr] = try_fit(10);
+net = configure(net, net_in, targets);
+
+[perf, regr] = try_fit(10);
 
 %% Set up the Genetic Algorithm
 
@@ -92,4 +107,4 @@ options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', 'SelectionFcn', 
 
 % [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], [], [1 2 3], options);
 
-[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], options);
+% [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], options);
