@@ -58,17 +58,16 @@ target_d = std(mpg);
 
 target_norm = (mpg - target_m) / target_d;
 
-%% Extract the correlation matrices
+%% Extract the correlation matrices and find the best features set
 
-% Correlation between the input features
+% Correlation between the input features.
 feat_corr = corr(features_norm);
 
-% Correlation between input features and targets
+% Correlation between input features and targets.
 targ_corr = corr(features_norm, target_norm);
 
-% A = [1 -1 0; -1 1 0; 0 1 -1; 0 -1 1; 1 0 -1; -1 0 1];
-% b = [1 -1 1 -1 1 -1]';
-
+% Setup the GA to find the set of features which maximizes the output
+% correlation and minimizes the input correlation.
 fitnessFcn = @feat_fitness;
 nvar = 3;
 
@@ -77,30 +76,25 @@ options = gaoptimset;
 options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', ...
     'Generations', 300, 'PlotFcns', @gaplotbestf);
 
-[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
-    [], [1 2 3], options);
+%[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
+%    [], [1 2 3], options);
 
 
 
-%% This section is just a test!
+%% Setup the NN inputs and targets
 
 % Select 3 features
 net_in = [features_norm(:,2) features_norm(:,6) features_norm(:,7)]';
 
 targets = target_norm';
 
-% net = feedforwardnet(10);
-% 
-% net = configure(net, net_in, targets);
-% 
-% [perf, regr] = try_fit(10);
+%% Multi-Layer Perceptron
+%We use the GA to find the best weights and biases. 
 
-%% Set up the Genetic Algorithm
+mlpFitness = @my_fitness;
+mlp_nvar = 51;
 
-fitnessFcn = @my_fitness;
-nvar = 51;
-
-% Initial set of wights, computed by Matlab.
+% Initial set of weights, computed by Matlab.
 IW = [2.2228  1.9433   -0.6168 -0.9164   -2.3342    1.6761 ...
    -1.5058    1.9284    1.7639  1.8134    2.1976    0.9896 ...
     0.9134   -0.5695   -2.8176 -1.7910   -1.6760    1.7552 ...
@@ -112,7 +106,9 @@ LW = [-0.0792    0.9831   -0.3792   -0.6987 ...
 b = [3.0162 2.3459 1.6757 -1.0054 -0.3351 -0.3351 -1.0054 -1.6757 ...
    -2.3459 3.0162 0.3273];
 
-Population = zeros(200, nvar);
+% Generate the initial population from by randomly perturbating the weights
+% computed by Matlab.
+Population = zeros(200, mlp_nvar);
 
 gen = [IW LW b];
 
@@ -120,13 +116,38 @@ for i=1:200
     Population(i,:) = -gen + (gen + gen).*rand();
 end
 
-options = gaoptimset;
+mlp_options = gaoptimset;
 
-options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', ...
+mlp_options = gaoptimset(mlp_options,'TolFun', 1e-8, 'Display', 'iter', ...
     'SelectionFcn', @selectionroulette, ...
     'CrossoverFcn', @crossoversinglepoint, ...
     'MutationFcn', @mutationgaussian, ...
     'Generations', 10, 'PlotFcns', @gaplotbestf, ...
     'InitialPopulation', Population);
 
-[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], options);
+%[mlp_weights, mlp_fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], mlp_options);
+
+%% Radial Basis Function Network
+% With the GA we want to find the best spread and centers for the
+% RBF neurons.
+
+load('rbf_best_wb.mat');
+
+rbfFitness = @rbf_fitness;
+
+rbf_nvar = 1595;
+
+rbf_options = gaoptimset;
+
+rbf_options = gaoptimset(rbf_options,'TolFun', 1e-8, 'Display', 'iter', ...
+    'SelectionFcn', @selectionroulette, ...
+    'CrossoverFcn', @crossoversinglepoint, ...
+    'MutationFcn', @mutationadaptfeasible, ...
+    'Generations', 10, 'PlotFcns', @gaplotbestf, ...
+    'CreationFcn', @gacreationlinearfeasible);
+
+% [rbf_spread, rbf_fval] = ga(rbfFitness, rbf_nvar, [], [], [], [], 0.01, [], [], [], rbf_options);
+
+[rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1593, 1595); ...
+    zeros(1, 1593) -1 0; zeros(1, 1595)], [zeros(1593,1); 0.001; 0], ...
+    [], [], [], [], [], [], rbf_options);

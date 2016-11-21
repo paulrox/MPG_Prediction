@@ -19,10 +19,10 @@ net_out = net(net_in);
 
 % errors = gsubtract(net_out, targets);
 
-perf = perform(net, targets, net_out);
-regr = regression(targets, net_out, 'one');
+mlp_mse = perform(net, targets, net_out);
+mlp_regr = regression(targets, net_out, 'one');
 
-y = perf - regr;
+y = mlp_mse - mlp_regr;
 
 end
 
