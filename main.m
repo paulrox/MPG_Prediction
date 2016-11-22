@@ -91,63 +91,86 @@ targets = target_norm';
 %% Multi-Layer Perceptron
 %We use the GA to find the best weights and biases. 
 
-mlpFitness = @my_fitness;
-mlp_nvar = 51;
+global mlp_net
 
-% Initial set of weights, computed by Matlab.
-IW = [2.2228  1.9433   -0.6168 -0.9164   -2.3342    1.6761 ...
-   -1.5058    1.9284    1.7639  1.8134    2.1976    0.9896 ...
-    0.9134   -0.5695   -2.8176 -1.7910   -1.6760    1.7552 ...
-   -2.1581   -1.5753    1.3994 -2.1137   -1.9468   -0.9163 ...
-   -2.4845   -1.2125    1.2061 1.5166    2.1356   -1.4955];
-LW = [-0.0792    0.9831   -0.3792   -0.6987 ...
-    0.6068    0.9273   -0.4589    0.6252 -0.9740   -0.6555];
+mlpFitness = @mlp_fitness;
 
-b = [3.0162 2.3459 1.6757 -1.0054 -0.3351 -0.3351 -1.0054 -1.6757 ...
-   -2.3459 3.0162 0.3273];
+for i=10:20
+    
+    mlp_net = feedforwardnet(i);
+    mlp_net = configure(mlp_net, net_in, targets);
+    mlp_net.divideParam.trainRatio = 70/100;
+    mlp_net.divideParam.valRatio = 15/100;
+    mlp_net.divideParam.testRatio = 15/100;
+    
+    mlp_nvar = mlp_net.numWeightElements;
+
+    % Initial set of weights, computed by Matlab.
+    
+    mlp_trained = train(mlp_net, net_in, targets);
+    trained_wb = compresswb(mlp_trained.IW, mlp_trained.LW, mlp_trained.b);
+    
+    %load('mlp_init_wb.mat');
 
 % Generate the initial population from by randomly perturbating the weights
 % computed by Matlab.
-Population = zeros(200, mlp_nvar);
+%     Population = zeros(200, mlp_nvar);
+% 
+%     for j=1:200
+%         Population(i,:) = -trained_wb + (trained_wb + trained_wb).*rand();
+%     end;
 
-gen = [IW LW b];
+    mlp_options = gaoptimset;
 
-for i=1:200
-    Population(i,:) = -gen + (gen + gen).*rand();
-end
+    mlp_options = gaoptimset(mlp_options,'TolFun', 1e-8, 'Display', 'iter', ...
+        'SelectionFcn', @selectionroulette, ...
+        'CrossoverFcn', @crossoversinglepoint, ...
+        'MutationFcn', @mutationgaussian, ...
+        'Generations', 10, 'PlotFcns', @gaplotbestf, ...
+        'InitialPopulation', trained_wb);
 
-mlp_options = gaoptimset;
-
-mlp_options = gaoptimset(mlp_options,'TolFun', 1e-8, 'Display', 'iter', ...
-    'SelectionFcn', @selectionroulette, ...
-    'CrossoverFcn', @crossoversinglepoint, ...
-    'MutationFcn', @mutationgaussian, ...
-    'Generations', 10, 'PlotFcns', @gaplotbestf, ...
-    'InitialPopulation', Population);
-
-%[mlp_weights, mlp_fval] = ga(fitnessFcn, nvar, [], [], [], [], [], [], [], [], mlp_options);
+    [mlp_weights, mlp_fval] = ga(mlpFitness, mlp_nvar, [], [], [], [], [], [], [], [], mlp_options);
+end;
 
 %% Radial Basis Function Network
 % With the GA we want to find the best spread and centers for the
 % RBF neurons.
 
+% Create the RBF network.
+global rbf_net
+rbf_net = network(1,2,[1;1],[1;0],[0 0;1 0],[0 1]);
+rbf_net.inputs{1}.size = 3;
+rbf_net.layers{1}.size = 398;
+rbf_net.inputWeights{1,1}.weightFcn = 'dist';
+rbf_net.layers{1}.netInputFcn = 'netprod';
+rbf_net.layers{1}.transferFcn = 'radbas';
+rbf_net.layers{2}.size = 1;
+
 load('rbf_best_wb.mat');
+rbf_init_b = cell(2, 1);
+rbf_init_b{1} = brbf_b{1}(1);
+rbf_init_b{2} = brbf_b{2};
+rbf_init_wb = compresswb(brbf_IW, brbf_LW, rbf_init_b);
 
 rbfFitness = @rbf_fitness;
-
-rbf_nvar = 1595;
+rbf_nvar = 1594;
+% 
+% Population = zeros(200, rbf_nvar);
+% for i=1:200
+%     Population(i,:) = -rbf_init_wb + (rbf_init_wb + rbf_init_wb).*rand();
+% end
 
 rbf_options = gaoptimset;
-
 rbf_options = gaoptimset(rbf_options,'TolFun', 1e-8, 'Display', 'iter', ...
     'SelectionFcn', @selectionroulette, ...
     'CrossoverFcn', @crossoversinglepoint, ...
     'MutationFcn', @mutationadaptfeasible, ...
     'Generations', 10, 'PlotFcns', @gaplotbestf, ...
-    'CreationFcn', @gacreationlinearfeasible);
+    'CreationFcn', @gacreationlinearfeasible, ...
+    'InitialPopulation', rbf_init_wb);
 
 % [rbf_spread, rbf_fval] = ga(rbfFitness, rbf_nvar, [], [], [], [], 0.01, [], [], [], rbf_options);
 
-[rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1593, 1595); ...
-    zeros(1, 1593) -1 0; zeros(1, 1595)], [zeros(1593,1); 0.001; 0], ...
+[rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1592, 1594); ...
+    zeros(1, 1592) -1 0; zeros(1, 1594)], [zeros(1592,1); 0.001; 0], ...
     [], [], [], [], [], [], rbf_options);
