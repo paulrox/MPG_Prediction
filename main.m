@@ -67,18 +67,30 @@ feat_corr = corr(features_norm);
 targ_corr = corr(features_norm, target_norm);
 
 % Setup the GA to find the set of features which maximizes the output
-% correlation and minimizes the input correlation.
+% correlation and minimizes the input correlation. In particular we want
+% to solve a linear multiobjective problem where we want to minimize the
+% input correlation and to maximize the output correlation. We apply the
+% scalarization method to obtain the set of Pareto minimum points.
 fitnessFcn = @feat_fitness;
 nvar = 3;
 
 options = gaoptimset;
+options = gaoptimset(options,'TolFun', 1e-8, 'Generations', 300);
 
-options = gaoptimset(options,'TolFun', 1e-8, 'Display', 'iter', ...
-    'Generations', 300, 'PlotFcns', @gaplotbestf);
+% global alpha;
+%
+% for alpha=1:-0.05:0
+%     [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
+%         [], [1 2 3], options);
+%     disp(sort(x));
+% end;
 
-%[x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
-%    [], [1 2 3], options);
-
+% By observing the solutions, there are 3 possible sets of features:
+% [2    5   7]
+% [2    6   7]
+% [2    4   7]
+% And by comparing the resulting MSE and R-Value in a MLP network we
+% observed that the features set [2 6 7] gives the best results.
 
 
 %% Setup the NN inputs and targets
@@ -94,6 +106,8 @@ targets = target_norm';
 global mlp_net
 
 mlpFitness = @mlp_fitness;
+
+mlp_nets = cell(1, 10);
 
 for i=10:20
     
@@ -129,10 +143,12 @@ for i=10:20
         'Generations', 10, 'PlotFcns', @gaplotbestf, ...
         'InitialPopulation', trained_wb);
 
-    [mlp_weights, mlp_fval] = ga(mlpFitness, mlp_nvar, [], [], [], [], [], [], [], [], mlp_options);
+%     [mlp_weights, mlp_fval] = ga(mlpFitness, mlp_nvar, [], [], [], [], [], [], [], [], mlp_options);
+    
+    mlp_nets{i-9} = mlp_net;
 end;
 
-%% Radial Basis Function Network
+%% Radial Basis Function Network (Max hidden neurons)
 % With the GA we want to find the best spread and centers for the
 % RBF neurons.
 
@@ -171,6 +187,60 @@ rbf_options = gaoptimset(rbf_options,'TolFun', 1e-8, 'Display', 'iter', ...
 
 % [rbf_spread, rbf_fval] = ga(rbfFitness, rbf_nvar, [], [], [], [], 0.01, [], [], [], rbf_options);
 
-[rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1592, 1594); ...
-    zeros(1, 1592) -1 0; zeros(1, 1594)], [zeros(1592,1); 0.001; 0], ...
-    [], [], [], [], [], [], rbf_options);
+% [rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1592, 1594); ...
+%     zeros(1, 1592) -1 0; zeros(1, 1594)], [zeros(1592,1); 0.001; 0], ...
+%     [], [], [], [], [], [], rbf_options);
+
+%% Radial Basis Function Network (Best number of hidden neurons)
+% First of all we use tje k-means clustering to find clusters of input data
+% to be used with the RBF network.
+
+global clust_c;
+
+kmeanFitness = @kmean_fitness;
+nvar = 1;
+
+kmean_options = gaoptimset;
+kmean_options = gaoptimset(kmean_options,'TolFun', 1e-8, ...
+    'Generations', 10, 'Display', 'iter', 'FitnessLimit', -1);
+
+%[x, fval] = ga(kmeanFitness, nvar, [], [], [], [], 1, 398, [], 1, ...
+%    kmean_options);
+
+% The optimal number of clusters is 306.
+
+% Compute the maximum distance among centroids.
+max_dist = max(pdist(clust_c));
+
+% Compute the spread.
+spread = max_dist/(sqrt(x));
+
+% Find the output layer weights and bias using GA.
+global rbf_net2 rbf_net2_IW rbf_net2_b
+rbf_net2 = network(1,2,[1;1],[1;0],[0 0;1 0],[0 1]);
+rbf_net2.inputs{1}.size = 3;
+rbf_net2.layers{1}.size = 306;
+rbf_net2.inputWeights{1,1}.weightFcn = 'dist';
+rbf_net2.layers{1}.netInputFcn = 'netprod';
+rbf_net2.layers{1}.transferFcn = 'radbas';
+rbf_net2.layers{2}.size = 1;
+
+rbf_net2_IW = cell(2, 1);
+rbf_net2_IW{1} = clust_c;
+hidden_b(1:306) = spread;
+rbf_net2_b = cell(2, 1);
+rbf_net2_b{1} = hidden_b;
+
+rbfFitness2 = @rbf_fitness2;
+rbf_nvar2 = 307;
+
+rbf_options2 = gaoptimset;
+rbf_options2 = gaoptimset(rbf_options2,'TolFun', 1e-8, 'Display', 'iter', ...
+    'SelectionFcn', @selectionroulette, ...
+    'CrossoverFcn', @crossoversinglepoint, ...
+    'MutationFcn', @mutationadaptfeasible, ...
+    'Generations', 10, 'PlotFcns', @gaplotbestf);
+
+[rbf_weights2, rbf_fval2] = ga(rbfFitness2, rbf_nvar2, [], [], ...
+    [], [], [], [], [], [], rbf_options2);
+
