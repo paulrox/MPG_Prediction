@@ -100,7 +100,7 @@ net_in = [features_norm(:,2) features_norm(:,6) features_norm(:,7)]';
 
 targets = target_norm';
 
-%% Multi-Layer Perceptron
+%% Multi-Layer Perceptron (1 LAYER)
 %We use the GA to find the best weights and biases. 
 
 global mlp_net
@@ -109,7 +109,7 @@ mlpFitness = @mlp_fitness;
 
 mlp_nets = cell(1, 10);
 
-for i=10:20
+for i=5:15
     
     mlp_net = feedforwardnet(i);
     mlp_net = configure(mlp_net, net_in, targets);
@@ -124,8 +124,6 @@ for i=10:20
     mlp_trained = train(mlp_net, net_in, targets);
     trained_wb = compresswb(mlp_trained.IW, mlp_trained.LW, mlp_trained.b);
     
-    %load('mlp_init_wb.mat');
-
 % Generate the initial population from by randomly perturbating the weights
 % computed by Matlab.
 %     Population = zeros(200, mlp_nvar);
@@ -145,7 +143,56 @@ for i=10:20
 
 %     [mlp_weights, mlp_fval] = ga(mlpFitness, mlp_nvar, [], [], [], [], [], [], [], [], mlp_options);
     
-    mlp_nets{i-9} = mlp_net;
+    mlp_nets{i-4} = mlp_net;
+end;
+
+%% Multi-Layer Perceptron (2 LAYERS)
+
+global mlp_net2
+
+mlpFitness2 = @mlp_fitness2;
+
+mlp_nets2 = cell(10, 10);
+
+for i=5:15
+    for j=5:15
+    
+    mlp_net2 = feedforwardnet([i, j]);
+    mlp_net2 = configure(mlp_net2, net_in, targets);
+    mlp_net2.divideParam.trainRatio = 70/100;
+    mlp_net2.divideParam.valRatio = 15/100;
+    mlp_net2.divideParam.testRatio = 15/100;
+    
+    mlp_nvar2 = mlp_net2.numWeightElements;
+
+    % Initial set of weights, computed by Matlab.
+    
+    mlp_trained2 = train(mlp_net2, net_in, targets);
+    %trained_wb2 = compresswb(mlp_trained.IW, mlp_trained.LW, mlp_trained.b);
+    trained_wb2 = getwb(mlp_trained2);
+    
+% Generate the initial population from by randomly perturbating the weights
+% computed by Matlab.
+%     Population = zeros(200, mlp_nvar);
+% 
+%     for j=1:200
+%         Population(i,:) = -trained_wb + (trained_wb + trained_wb).*rand();
+%     end;
+
+    mlp_options2 = gaoptimset;
+
+    mlp_options2 = gaoptimset(mlp_options2,'TolFun', 1e-8, 'Display', 'iter', ...
+        'SelectionFcn', @selectionroulette, ...
+        'CrossoverFcn', @crossoversinglepoint, ...
+        'MutationFcn', @mutationgaussian, ...
+        'Generations', 10, 'PlotFcns', @gaplotbestf, ...
+        'InitialPopulation', trained_wb2');
+
+   [mlp_weights, mlp_fval] = ga(mlpFitness2, mlp_nvar2, [], [], [], [], ...
+       [], [], [], [], mlp_options2);
+    
+    mlp_nets{i-4, j-4} = mlp_net2;
+    end;
 end;
 
 %% Radial Basis Function Network (Max hidden neurons)
@@ -209,17 +256,21 @@ kmean_options = gaoptimset(kmean_options,'TolFun', 1e-8, ...
 
 % The optimal number of clusters is 306.
 
+clust_size = 10;
+
+[idx, clust_c] = kmeans(net_in', clust_size, 'Distance','cityblock');
+
 % Compute the maximum distance among centroids.
 max_dist = max(pdist(clust_c));
 
 % Compute the spread.
-spread = max_dist/(sqrt(x));
+spread = max_dist/(sqrt(clust_size));
 
 % Find the output layer weights and bias using GA.
 global rbf_net2 rbf_net2_IW rbf_net2_b
 rbf_net2 = network(1,2,[1;1],[1;0],[0 0;1 0],[0 1]);
 rbf_net2.inputs{1}.size = 3;
-rbf_net2.layers{1}.size = 306;
+rbf_net2.layers{1}.size = clust_size;
 rbf_net2.inputWeights{1,1}.weightFcn = 'dist';
 rbf_net2.layers{1}.netInputFcn = 'netprod';
 rbf_net2.layers{1}.transferFcn = 'radbas';
@@ -227,12 +278,12 @@ rbf_net2.layers{2}.size = 1;
 
 rbf_net2_IW = cell(2, 1);
 rbf_net2_IW{1} = clust_c;
-hidden_b(1:306) = spread;
+hidden_b(1:clust_size) = spread;
 rbf_net2_b = cell(2, 1);
 rbf_net2_b{1} = hidden_b;
 
 rbfFitness2 = @rbf_fitness2;
-rbf_nvar2 = 307;
+rbf_nvar2 = clust_size+1;
 
 rbf_options2 = gaoptimset;
 rbf_options2 = gaoptimset(rbf_options2,'TolFun', 1e-8, 'Display', 'iter', ...

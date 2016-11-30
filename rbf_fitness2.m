@@ -5,9 +5,11 @@ function [ y ] = rbf_fitness2( x )
 global rbf_net2 net_in targets rbf_net2_IW rbf_net2_b;
 
 LW = cell(2,2);
-LW{2,1} = x(1:306);
+%LW{2,1} = x(1:306);
+LW{2,1} = x(1:10);
 
-rbf_net2_b{2} = x(307);
+%rbf_net2_b{2} = x(307);
+rbf_net2_b{2} = x(11);
 
 wb = formwb(rbf_net2, rbf_net2_b, rbf_net2_IW, LW);
 
