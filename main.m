@@ -2,6 +2,7 @@
 clearvars; clc;
 
 global net_in targets features_norm feat_corr targ_corr;
+global history;
 % features coloumns indices
 cyl_col = 1;
 disp_col = 2;
@@ -11,6 +12,8 @@ acc_col = 5;
 year_col = 6;
 orig_col = 7;
 name_col = 8;
+
+history = struct;
 
 %% Extract all the features except the car names.
 extract_allfeatures;
@@ -103,11 +106,11 @@ targets = target_norm';
 %% Multi-Layer Perceptron (1 LAYER)
 %We use the GA to find the best weights and biases. 
 
-global mlp_net
+global mlp_net;
 
 mlpFitness = @mlp_fitness;
 
-mlp_nets = cell(1, 10);
+mlp_nets = cell(10, 2);
 
 for i=5:15
     
@@ -138,12 +141,16 @@ for i=5:15
         'SelectionFcn', @selectionroulette, ...
         'CrossoverFcn', @crossoversinglepoint, ...
         'MutationFcn', @mutationgaussian, ...
-        'Generations', 10, 'PlotFcns', @gaplotbestf, ...
-        'InitialPopulation', trained_wb);
+        'Generations', 300, ...
+        'InitialPopulation', trained_wb, ...
+        'OutputFcn', @ga_output);
+        %'PlotFcns', @gaplotbestf);
 
-%     [mlp_weights, mlp_fval] = ga(mlpFitness, mlp_nvar, [], [], [], [], [], [], [], [], mlp_options);
+  [mlp_weights, mlp_fval, ~, mlp_output] = ga(mlpFitness, mlp_nvar, ...
+       [], [], [], [], [], [], [], [], mlp_options);
     
-    mlp_nets{i-4} = mlp_net;
+    mlp_nets{i-4, 1} = mlp_net;
+    mlp_nets{i-4, 2} = history;
 end;
 
 %% Multi-Layer Perceptron (2 LAYERS)
@@ -185,13 +192,16 @@ for i=5:15
         'SelectionFcn', @selectionroulette, ...
         'CrossoverFcn', @crossoversinglepoint, ...
         'MutationFcn', @mutationgaussian, ...
-        'Generations', 10, 'PlotFcns', @gaplotbestf, ...
-        'InitialPopulation', trained_wb2');
+        'Generations', 300, ...
+        'InitialPopulation', trained_wb2', ...
+        'OutputFcn', @ga_output); 
+        %'PlotFcns', @gaplotbestf);
 
-   [mlp_weights, mlp_fval] = ga(mlpFitness2, mlp_nvar2, [], [], [], [], ...
+   [mlp_weights, mlp_fval, ~, mlp_output2] = ga(mlpFitness2, mlp_nvar2, [], [], [], [], ...
        [], [], [], [], mlp_options2);
     
-    mlp_nets{i-4, j-4} = mlp_net2;
+    mlp_nets2{i-4, j-4}{1} = mlp_net2;
+    mlp_nets2{i-4, j-4}{2} = history;
     end;
 end;
 
@@ -228,15 +238,19 @@ rbf_options = gaoptimset(rbf_options,'TolFun', 1e-8, 'Display', 'iter', ...
     'SelectionFcn', @selectionroulette, ...
     'CrossoverFcn', @crossoversinglepoint, ...
     'MutationFcn', @mutationadaptfeasible, ...
-    'Generations', 10, 'PlotFcns', @gaplotbestf, ...
+    'Generations', 150, ...
     'CreationFcn', @gacreationlinearfeasible, ...
-    'InitialPopulation', rbf_init_wb);
+    'InitialPopulation', rbf_init_wb, ...
+    'OutputFcn', @ga_output);
+    %'PlotFcns', @gaplotbestf,
 
 % [rbf_spread, rbf_fval] = ga(rbfFitness, rbf_nvar, [], [], [], [], 0.01, [], [], [], rbf_options);
 
-% [rbf_weights, rbf_fval] = ga(rbfFitness, rbf_nvar, [zeros(1592, 1594); ...
-%     zeros(1, 1592) -1 0; zeros(1, 1594)], [zeros(1592,1); 0.001; 0], ...
-%     [], [], [], [], [], [], rbf_options);
+[rbf_weights, rbf_fval, ~, rbf_output] = ga(rbfFitness, rbf_nvar, [zeros(1592, 1594); ...
+    zeros(1, 1592) -1 0; zeros(1, 1594)], [zeros(1592,1); 0.001; 0], ...
+    [], [], [], [], [], [], rbf_options);
+
+rbf_history = history;
 
 %% Radial Basis Function Network (Best number of hidden neurons)
 % First of all we use tje k-means clustering to find clusters of input data
@@ -256,42 +270,52 @@ kmean_options = gaoptimset(kmean_options,'TolFun', 1e-8, ...
 
 % The optimal number of clusters is 306.
 
-clust_size = 10;
+global rbf_net2 rbf_net2_IW rbf_net2_b clust_size
 
-[idx, clust_c] = kmeans(net_in', clust_size, 'Distance','cityblock');
+rbf_nets = cell(10, 2);
 
-% Compute the maximum distance among centroids.
-max_dist = max(pdist(clust_c));
+for i=5:15
+    clust_size = i;
 
-% Compute the spread.
-spread = max_dist/(sqrt(clust_size));
+    [idx, clust_c] = kmeans(net_in', clust_size, 'Distance','cityblock');
 
-% Find the output layer weights and bias using GA.
-global rbf_net2 rbf_net2_IW rbf_net2_b
-rbf_net2 = network(1,2,[1;1],[1;0],[0 0;1 0],[0 1]);
-rbf_net2.inputs{1}.size = 3;
-rbf_net2.layers{1}.size = clust_size;
-rbf_net2.inputWeights{1,1}.weightFcn = 'dist';
-rbf_net2.layers{1}.netInputFcn = 'netprod';
-rbf_net2.layers{1}.transferFcn = 'radbas';
-rbf_net2.layers{2}.size = 1;
+    % Compute the maximum distance among centroids.
+    max_dist = max(pdist(clust_c));
 
-rbf_net2_IW = cell(2, 1);
-rbf_net2_IW{1} = clust_c;
-hidden_b(1:clust_size) = spread;
-rbf_net2_b = cell(2, 1);
-rbf_net2_b{1} = hidden_b;
+    % Compute the spread.
+    spread = max_dist/(sqrt(clust_size));
 
-rbfFitness2 = @rbf_fitness2;
-rbf_nvar2 = clust_size+1;
+    % Find the output layer weights and bias using GA.
+    rbf_net2 = network(1,2,[1;1],[1;0],[0 0;1 0],[0 1]);
+    rbf_net2.inputs{1}.size = 3;
+    rbf_net2.layers{1}.size = clust_size;
+    rbf_net2.inputWeights{1,1}.weightFcn = 'dist';
+    rbf_net2.layers{1}.netInputFcn = 'netprod';
+    rbf_net2.layers{1}.transferFcn = 'radbas';
+    rbf_net2.layers{2}.size = 1;
 
-rbf_options2 = gaoptimset;
-rbf_options2 = gaoptimset(rbf_options2,'TolFun', 1e-8, 'Display', 'iter', ...
-    'SelectionFcn', @selectionroulette, ...
-    'CrossoverFcn', @crossoversinglepoint, ...
-    'MutationFcn', @mutationadaptfeasible, ...
-    'Generations', 10, 'PlotFcns', @gaplotbestf);
+    rbf_net2_IW = cell(2, 1);
+    rbf_net2_IW{1} = clust_c;
+    hidden_b(1:clust_size) = spread;
+    rbf_net2_b = cell(2, 1);
+    rbf_net2_b{1} = hidden_b;
 
-[rbf_weights2, rbf_fval2] = ga(rbfFitness2, rbf_nvar2, [], [], ...
-    [], [], [], [], [], [], rbf_options2);
+    rbfFitness2 = @rbf_fitness2;
+    rbf_nvar2 = clust_size+1;
+
+    rbf_options2 = gaoptimset;
+    rbf_options2 = gaoptimset(rbf_options2,'TolFun', 1e-8, 'Display', 'iter', ...
+        'SelectionFcn', @selectionroulette, ...
+        'CrossoverFcn', @crossoversinglepoint, ...
+        'MutationFcn', @mutationadaptfeasible, ...
+        'Generations', 300, ...
+        'OutputFcn', @ga_output);
+        %'PlotFcns', @gaplotbestf
+
+    [rbf_weights2, rbf_fval2, ~, rbf_output2] = ga(rbfFitness2, rbf_nvar2, [], [], ...
+        [], [], [], [], [], [], rbf_options2);
+
+    rbf_nets{i-4, 1} = rbf_net2;
+    rbf_nets{i-4, 2} = history;
+end;
 
