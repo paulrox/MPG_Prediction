@@ -23,9 +23,6 @@ B{2} = b(2);
 
 wb = formwb(rbf_net, B, IW, LW);
 
-% hidden_bias(1:398) = x(1594);
-% wb = [x(1:1593)'; hidden_bias'; x(1595)];
-
 rbf_net = setwb(rbf_net, wb);
 rbf_net_out = rbf_net(net_in);
 
