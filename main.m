@@ -1,5 +1,5 @@
 %% Main script.
-clearvars; clc;
+clearvars; clc; close all;
 
 global net_in targets features_norm feat_corr targ_corr;
 global history;
@@ -118,6 +118,7 @@ for i=5:15
     
     mlp_net = feedforwardnet(i);
     mlp_net = configure(mlp_net, net_in, targets);
+    %mlp_net.inputs{1}.processFcns = {};
     mlp_net.divideParam.trainRatio = 70/100;
     mlp_net.divideParam.valRatio = 15/100;
     mlp_net.divideParam.testRatio = 15/100;
@@ -134,7 +135,7 @@ for i=5:15
         'SelectionFcn', @selectionroulette, ...
         'CrossoverFcn', @crossoversinglepoint, ...
         'MutationFcn', @mutationgaussian, ...
-        'Generations', 300, ...
+        'Generations', 3, ...
         'InitialPopulation', trained_wb', ...
         'OutputFcn', @ga_output);
         %'PlotFcns', @gaplotbestf);
