@@ -1,6 +1,5 @@
 function [ y ] = rbf_fitness2( x )
-%rbf2_fitness Summary of this function goes here
-%   Detailed explanation goes here
+%rbf2_fitness RBF network fitness function
 
 global rbf_net2 net_in targets rbf_net2_IW rbf_net2_b clust_size;
 

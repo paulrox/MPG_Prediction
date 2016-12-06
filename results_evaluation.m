@@ -226,6 +226,7 @@ hold off
 %Plot cluster silhouette
 figure;
 silhouette(net_in',idx, 'cityblock');
+title('Silhouette with 14 clusters');
 
 % Extract data for the best architecture
 figure;

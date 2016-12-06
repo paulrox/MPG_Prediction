@@ -1,6 +1,5 @@
 function [ y ] = mlp_fitness2( x )
-%mlp_fitness2 Summary of this function goes here
-%   Detailed explanation goes here
+%mlp_fitness2 MLP network with two hidden layers fitness function
 
 global mlp_net2 net_in targets
 
