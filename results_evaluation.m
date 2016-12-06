@@ -72,6 +72,7 @@ for i=1:11
 end;
 
 % Plot all the results
+figure;
 bar(perf_mlp1(:,1),perf_mlp1(:,2))
 xlabel('Hidden Neurons');
 ylabel('MSE');
@@ -81,6 +82,7 @@ title('MLP - 1 Hidden Layer - Comparison');
 mlp1_best = perf_mlp1(perf_mlp1(:,2) == min(perf_mlp1(:,2)));
 
 % Extract data for the best architecture
+figure;
 out = mlp_nets{mlp1_best-4,1}(net_in);
 out = out*std(targets) + mean(targets);
 err = targets - out;
@@ -89,6 +91,7 @@ ploterrhist(err);
 title('MLP - 1 Hidden Layer - 13 Hidden Neurons');
 
 % GA plots
+figure;
 scatter(mlp_nets{mlp1_best-4,2}.gen,mlp_nets{mlp1_best-4,2}.best);
 hold on;
 scatter(mlp_nets{mlp1_best-4,2}.gen,mlp_nets{mlp1_best-4,2}.mean);
@@ -118,7 +121,7 @@ for i=1:11
 end;
 
 % Plot all the results
-
+figure;
 bar(perf_mlp2(1:11,2),y_bar);
 legend('5 HN(Layer 2)', '6 HN(Layer 2)', '7 HN(Layer 2)', '8 HN(Layer 2)', ...
     '9 HN(Layer 2)', '10 HN(Layer 2)', '11 HN(Layer 2)', '12 HN(Layer 2)', ...
@@ -131,6 +134,7 @@ title('MLP - 2 Hidden Layers - Comparison');
 mlp2_best = perf_mlp2(perf_mlp2(:,3) == min(perf_mlp2(:,3)),:);
 
 % Extract data for the best architecture
+figure;
 out = mlp_nets2{mlp2_best(1)-4,mlp2_best(2)-4}{1}(net_in);
 out = out*std(targets) + mean(targets);
 err = targets - out;
@@ -139,6 +143,7 @@ ploterrhist(err);
 title('MLP - 2 Hidden Layers - [13 15] Hidden Neurons');
 
 % GA plots
+figure;
 scatter(mlp_nets2{mlp2_best(1)-4,mlp2_best(2)-4}{2}.gen, ...
     mlp_nets2{mlp2_best(1)-4,mlp2_best(2)-4}{2}.best);
 hold on;
@@ -160,11 +165,13 @@ out = out*std(targets) + mean(targets);
 perf_rbf(1) = perform(rbf_net,targets,out);
 perf_rbf(2) = regression(targets, out, 'one');
 
+figure;
 err = targets - out;
 ploterrhist(err);
 title('RBF - Max Hidden Neurons');
 
 % GA plots
+figure;
 scatter(rbf_history.gen,rbf_history.best);
 hold on;
 scatter(rbf_history.gen,rbf_history.mean);
@@ -188,6 +195,7 @@ for i=1:11
 end;
 
 % Plot all the results
+figure;
 bar(perf_rbf2(:,1),perf_rbf2(:,2))
 xlabel('Hidden Neurons');
 ylabel('MSE');
@@ -197,6 +205,8 @@ title('RBF with Clustering - Comparison');
 rbf2_best = perf_rbf2(perf_rbf2(:,2) == min(perf_rbf2(:,2)));
 [idx, clust_c] = kmeans(net_in', rbf2_best, 'Distance','cityblock');
 
+% Plot clustered data
+figure;
 symbols = ['o' '+' '*'];
 h = zeros(1,rbf2_best);
 for i = 1:rbf2_best
@@ -213,7 +223,12 @@ title('Observation partition in 14 clusters');
 grid on
 hold off
 
+%Plot cluster silhouette
+figure;
+silhouette(net_in',idx, 'cityblock');
+
 % Extract data for the best architecture
+figure;
 out = rbf_nets{rbf2_best-4,1}(net_in);
 out = out*std2(targets) + mean(targets);
 err = targets - out;
@@ -221,6 +236,7 @@ err = targets - out;
 ploterrhist(err);
 
 % GA plots
+figure;
 scatter(rbf_nets{rbf2_best-4,2}.gen,rbf_nets{rbf2_best-4,2}.best);
 hold on;
 scatter(rbf_nets{rbf2_best-4,2}.gen,rbf_nets{rbf2_best-4,2}.mean);
