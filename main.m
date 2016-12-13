@@ -74,21 +74,21 @@ targ_corr = corr(features_norm, target_norm);
 % to solve a linear multiobjective problem where we want to minimize the
 % input correlation and to maximize the output correlation. We apply the
 % scalarization method to obtain the set of Pareto minimum points.
-% fitnessFcn = @feat_fitness;
-% nvar = 3;
-% 
-% options = gaoptimset;
-% options = gaoptimset(options,'TolFun', 1e-8, 'Generations', 300);
-% 
-% global alpha;
-% 
-% feat_sol = [];
-% 
-% for alpha=1:-0.005:0
-%     [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
-%         [], [1 2 3], options);
-%     feat_sol = [feat_sol; sort(x)];
-% end;
+fitnessFcn = @feat_fitness;
+nvar = 3;
+
+options = gaoptimset;
+options = gaoptimset(options,'TolFun', 1e-8, 'Generations', 300);
+
+global alpha;
+
+feat_sol = [];
+
+for alpha=1:-0.005:0
+    [x, fval] = ga(fitnessFcn, nvar, [], [], [], [], [1; 1; 1], [7; 7; 7], ...
+        [], [1 2 3], options);
+    feat_sol = [feat_sol; sort(x)];
+end;
 
 % By observing the solutions, there are 3 possible sets of features:
 % [2    5   7]
@@ -219,7 +219,7 @@ rbf_options = gaoptimset(rbf_options,'TolFun', 1e-8, 'Display', 'iter', ...
     'SelectionFcn', @selectionroulette, ...
     'CrossoverFcn', @crossoversinglepoint, ...
     'MutationFcn', @mutationadaptfeasible, ...
-    'Generations', 150, ...
+    'Generations', 300, ...
     'CreationFcn', @gacreationlinearfeasible, ...
     'InitialPopulation', rbf_init_wb, ...
     'OutputFcn', @ga_output);
